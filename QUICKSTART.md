@@ -122,6 +122,13 @@ papergen format compile                  # Create PDF
 papergen format compile --open           # Create and open PDF
 ```
 
+### Research Discovery (For Students)
+```bash
+papergen discover survey paper.pdf -t "NLP"   # Analyze survey paper
+papergen discover paper paper.pdf             # Deep analyze a paper
+papergen discover brainstorm "topic" -n 5     # Generate research ideas
+```
+
 ---
 
 ## Common Workflows
@@ -151,6 +158,28 @@ papergen format latex && papergen format compile --open
 papergen research add new_papers/*.pdf
 papergen research organize          # Re-organize with new sources
 papergen draft draft-section intro  # Re-draft affected sections
+```
+
+### Postgraduate Student Workflow (From Abstract Topic to Paper Idea)
+```bash
+# Step 1: Your supervisor gives you a broad topic like "NLP" or "LLM"
+# Download a recent survey paper from arXiv
+
+# Step 2: Analyze the survey to understand the research landscape
+papergen discover survey survey_paper.pdf -t "Large Language Models" -o landscape.json
+
+# Step 3: Identify critical papers for deep reading
+# The survey analysis will list key papers to read
+
+# Step 4: Deep analyze 2-3 critical papers
+papergen discover paper critical_paper1.pdf
+papergen discover paper critical_paper2.pdf
+
+# Step 5: Brainstorm novel research ideas based on gaps and weaknesses
+papergen discover brainstorm "LLM efficiency" -n 5 -c landscape.json
+
+# Step 6: Pick the best idea and start writing!
+papergen init "Your Novel Idea Title" --template acl
 ```
 
 ---

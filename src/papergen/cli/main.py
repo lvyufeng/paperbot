@@ -210,11 +210,13 @@ from . import outline as outline_module
 from . import draft as draft_module
 from . import revise as revise_module
 from . import format as format_module
+from . import discover as discover_module
 app.add_typer(research_module.app, name="research")
 app.add_typer(outline_module.app, name="outline")
 app.add_typer(draft_module.app, name="draft")
 app.add_typer(revise_module.app, name="revise")
 app.add_typer(format_module.app, name="format")
+app.add_typer(discover_module.app, name="discover")
 
 
 if __name__ == "__main__":
