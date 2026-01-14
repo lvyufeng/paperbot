@@ -59,14 +59,21 @@ class LaTeXBuilder:
 
     def _get_builtin_template(self) -> str:
         """Get built-in template text."""
-        if self.template == "ieee":
-            return self._get_ieee_template()
-        elif self.template == "acm":
-            return self._get_acm_template()
-        elif self.template == "springer":
-            return self._get_springer_template()
-        else:
-            return self._get_basic_template()
+        templates = {
+            "ieee": self._get_ieee_template,
+            "acm": self._get_acm_template,
+            "springer": self._get_springer_template,
+            "acl": self._get_acl_template,
+            "emnlp": self._get_acl_template,  # EMNLP uses ACL style
+            "naacl": self._get_acl_template,  # NAACL uses ACL style
+            "aaai": self._get_aaai_template,
+            "ijcai": self._get_ijcai_template,
+            "neurips": self._get_neurips_template,
+            "nips": self._get_neurips_template,  # Alias
+            "icml": self._get_icml_template,
+        }
+        template_func = templates.get(self.template.lower(), self._get_basic_template)
+        return template_func()
 
     def _fill_template(self, template: str) -> str:
         """Fill template with content."""
@@ -351,6 +358,238 @@ class LaTeXBuilder:
 \begin{thebibliography}{99}
 {{BIBLIOGRAPHY}}
 \end{thebibliography}
+
+\end{document}
+"""
+
+    def _get_acl_template(self) -> str:
+        """Get ACL/EMNLP/NAACL template."""
+        return r"""\documentclass[11pt]{article}
+\usepackage[hyperref]{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\title{{{TITLE}}}
+\author{{{AUTHORS}}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+{{ABSTRACT}}
+\end{abstract}
+
+{{INTRODUCTION}}
+
+{{BACKGROUND}}
+
+{{RELATED_WORK}}
+
+{{METHODS}}
+
+{{METHODOLOGY}}
+
+{{RESULTS}}
+
+{{DISCUSSION}}
+
+{{CONCLUSION}}
+
+\bibliography{references}
+\bibliographystyle{acl_natbib}
+
+\end{document}
+"""
+
+    def _get_aaai_template(self) -> str:
+        """Get AAAI template."""
+        return r"""\documentclass[letterpaper]{article}
+\usepackage{aaai24}
+\usepackage{times}
+\usepackage{helvet}
+\usepackage{courier}
+\usepackage[hyphens]{url}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+\title{{{TITLE}}}
+\author{{{AUTHORS}}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+{{ABSTRACT}}
+\end{abstract}
+
+{{INTRODUCTION}}
+
+{{BACKGROUND}}
+
+{{RELATED_WORK}}
+
+{{METHODS}}
+
+{{METHODOLOGY}}
+
+{{RESULTS}}
+
+{{DISCUSSION}}
+
+{{CONCLUSION}}
+
+\bibliography{references}
+
+\end{document}
+"""
+
+    def _get_ijcai_template(self) -> str:
+        """Get IJCAI template."""
+        return r"""\documentclass{article}
+\pdfpagewidth=8.5in
+\pdfpageheight=11in
+\usepackage{ijcai24}
+\usepackage{times}
+\usepackage{soul}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+\title{{{TITLE}}}
+\author{{{AUTHORS}}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+{{ABSTRACT}}
+\end{abstract}
+
+{{INTRODUCTION}}
+
+{{BACKGROUND}}
+
+{{RELATED_WORK}}
+
+{{METHODS}}
+
+{{METHODOLOGY}}
+
+{{RESULTS}}
+
+{{DISCUSSION}}
+
+{{CONCLUSION}}
+
+\bibliography{references}
+
+\end{document}
+"""
+
+    def _get_neurips_template(self) -> str:
+        """Get NeurIPS template."""
+        return r"""\documentclass{article}
+\usepackage[final]{neurips_2024}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{graphicx}
+
+\title{{{TITLE}}}
+\author{{{AUTHORS}}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+{{ABSTRACT}}
+\end{abstract}
+
+{{INTRODUCTION}}
+
+{{BACKGROUND}}
+
+{{RELATED_WORK}}
+
+{{METHODS}}
+
+{{METHODOLOGY}}
+
+{{RESULTS}}
+
+{{DISCUSSION}}
+
+{{CONCLUSION}}
+
+\bibliography{references}
+\bibliographystyle{unsrtnat}
+
+\end{document}
+"""
+
+    def _get_icml_template(self) -> str:
+        """Get ICML template."""
+        return r"""\documentclass{article}
+\usepackage{icml2024}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{url}
+
+\begin{document}
+
+\twocolumn[
+\icmltitle{{{TITLE}}}
+
+\begin{icmlauthorlist}
+\icmlauthor{{{AUTHORS}}}{}
+\end{icmlauthorlist}
+
+\vskip 0.3in
+]
+
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+{{ABSTRACT}}
+\end{abstract}
+
+{{INTRODUCTION}}
+
+{{BACKGROUND}}
+
+{{RELATED_WORK}}
+
+{{METHODS}}
+
+{{METHODOLOGY}}
+
+{{RESULTS}}
+
+{{DISCUSSION}}
+
+{{CONCLUSION}}
+
+\bibliography{references}
+\bibliographystyle{icml2024}
 
 \end{document}
 """

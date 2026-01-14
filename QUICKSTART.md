@@ -212,6 +212,36 @@ papergen revise revise-section intro \
 
 ## Templates
 
+### NLP Conferences (ACL/EMNLP/NAACL)
+```bash
+papergen init "Topic" --template acl
+papergen format latex --template acl
+```
+
+### AAAI
+```bash
+papergen init "Topic" --template aaai
+papergen format latex --template aaai
+```
+
+### IJCAI
+```bash
+papergen init "Topic" --template ijcai
+papergen format latex --template ijcai
+```
+
+### NeurIPS
+```bash
+papergen init "Topic" --template neurips
+papergen format latex --template neurips
+```
+
+### ICML
+```bash
+papergen init "Topic" --template icml
+papergen format latex --template icml
+```
+
 ### IEEE (Conference)
 ```bash
 papergen init "Topic" --template ieee
