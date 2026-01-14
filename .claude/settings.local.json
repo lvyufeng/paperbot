@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(papergen status:*)",
+      "Bash(papergen outline --help:*)",
+      "Bash(pip install:*)",
+      "Bash(papergen revise --help:*)",
+      "Bash(papergen revise:*)",
+      "Bash(papergen draft show:*)",
+      "Bash(papergen format --help:*)",
+      "Bash(papergen format:*)",
+      "Bash(python -m papergen.cli.main:*)",
+      "Bash(wc:*)"
+    ]
+  }
+}

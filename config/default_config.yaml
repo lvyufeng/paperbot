@@ -1,0 +1,54 @@
+# PaperGen Default Configuration
+
+# API Configuration
+api:
+  provider: anthropic
+  model: claude-opus-4-5
+  max_tokens: 4096
+  temperature: 0.7
+  timeout: 120
+
+# Pipeline Settings
+pipeline:
+  auto_save: true
+  cache_responses: true
+  parallel_drafting: false
+
+# Content Settings
+content:
+  default_word_counts:
+    abstract: 250
+    introduction: 1500
+    related_work: 1000
+    methods: 1500
+    results: 1500
+    discussion: 1000
+    conclusion: 500
+
+  citation_style: apa
+  figure_format: png
+  table_format: latex
+
+# Output Settings
+output:
+  latex:
+    default_template: ieee
+    compile_on_format: true
+    bibtex_backend: biber
+
+  markdown:
+    default_template: standard
+    include_toc: true
+    math_renderer: katex
+
+# Source Processing
+sources:
+  pdf:
+    extract_figures: true
+    extract_tables: true
+    ocr_enabled: false
+
+  web:
+    user_agent: "PaperGen/1.0"
+    timeout: 30
+    max_retries: 3
