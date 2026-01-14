@@ -10,20 +10,27 @@ from ..core.logging_config import get_logger, log_api_call, log_error
 class ClaudeClient:
     """Wrapper for Anthropic Claude API."""
 
-    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None, base_url: Optional[str] = None):
         """
         Initialize Claude client.
 
         Args:
             api_key: Anthropic API key (uses env var if not provided)
             model: Model to use (uses config default if not provided)
+            base_url: Custom API base URL (uses config if not provided, supports self-hosted/third-party APIs)
         """
         self.logger = get_logger()
         self.api_key = api_key or config.get_api_key()
         self.model = model or config.get('api.model', 'claude-opus-4-5')
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        self.base_url = base_url if base_url is not None else config.get_api_base_url()
 
-        self.logger.info(f"Claude client initialized: model={self.model}")
+        # Initialize Anthropic client with optional custom base URL
+        if self.base_url:
+            self.client = anthropic.Anthropic(api_key=self.api_key, base_url=self.base_url)
+            self.logger.info(f"Claude client initialized: model={self.model}, base_url={self.base_url}")
+        else:
+            self.client = anthropic.Anthropic(api_key=self.api_key)
+            self.logger.info(f"Claude client initialized: model={self.model}")
 
     def generate(
         self,

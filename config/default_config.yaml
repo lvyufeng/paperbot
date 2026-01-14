@@ -7,6 +7,12 @@ api:
   max_tokens: 4096
   temperature: 0.7
   timeout: 120
+  # base_url: null  # Optional: Custom API endpoint for self-hosted or third-party providers
+                    # Examples:
+                    # - Self-hosted: https://your-domain.com/v1
+                    # - LiteLLM: https://your-litellm-proxy.com
+                    # - OpenRouter: https://openrouter.ai/api/v1
+                    # Leave commented or set to null for default Anthropic API
 
 # Pipeline Settings
 pipeline:

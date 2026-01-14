@@ -17,6 +17,28 @@ papergen --help
 
 ---
 
+## Using Custom API Endpoints (Optional)
+
+PaperGen supports self-hosted Anthropic API and third-party providers like LiteLLM, OpenRouter, etc.
+
+```bash
+# Option 1: Environment variable
+export ANTHROPIC_BASE_URL='https://your-api-endpoint.com/v1'
+export ANTHROPIC_API_KEY='your-key-here'
+
+# Option 2: Config file (edit config/default_config.yaml)
+# api:
+#   base_url: https://your-api-endpoint.com/v1
+
+# Examples:
+# LiteLLM: export ANTHROPIC_BASE_URL='https://your-litellm-proxy.com'
+# OpenRouter: export ANTHROPIC_BASE_URL='https://openrouter.ai/api/v1'
+```
+
+**Note:** Leave `ANTHROPIC_BASE_URL` unset to use the default Anthropic API.
+
+---
+
 ## Write Your First Paper (5 Minutes)
 
 ```bash

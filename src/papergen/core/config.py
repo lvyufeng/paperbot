@@ -92,15 +92,41 @@ class Config:
             )
         return api_key
 
+    def get_api_base_url(self) -> Optional[str]:
+        """
+        Get custom API base URL from environment or config.
+
+        Supports self-hosted Anthropic API and third-party providers
+        like LiteLLM, OpenRouter, etc.
+
+        Returns:
+            Custom base URL if configured, None for default Anthropic API
+        """
+        # Check environment variable first (highest priority)
+        base_url = os.getenv('ANTHROPIC_BASE_URL')
+        if base_url:
+            return base_url
+
+        # Check config file
+        base_url = self.get('api.base_url', None)
+        return base_url
+
     def get_api_config(self) -> Dict[str, Any]:
         """Get API configuration."""
-        return {
+        config = {
             'provider': self.get('api.provider', 'anthropic'),
             'model': self.get('api.model', 'claude-opus-4-5'),
             'max_tokens': self.get('api.max_tokens', 4096),
             'temperature': self.get('api.temperature', 0.7),
             'timeout': self.get('api.timeout', 120),
         }
+
+        # Add base_url if configured (for self-hosted or third-party APIs)
+        base_url = self.get_api_base_url()
+        if base_url:
+            config['base_url'] = base_url
+
+        return config
 
     def get_word_count_targets(self) -> Dict[str, int]:
         """Get default word count targets for sections."""
