@@ -21,7 +21,7 @@ class ClaudeClient:
         """
         self.logger = get_logger()
         self.api_key = api_key or config.get_api_key()
-        self.model = model or config.get('api.model', 'claude-opus-4-5')
+        self.model = model or config.get('api.model', 'claude-sonnet-4-20250514')
         self.base_url = base_url if base_url is not None else config.get_api_base_url()
 
         # Initialize Anthropic client with optional custom base URL

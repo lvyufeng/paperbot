@@ -84,7 +84,8 @@ class Config:
         Raises:
             ValueError: If API key not found
         """
-        api_key = os.getenv('ANTHROPIC_API_KEY')
+        # Check both ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN (Claude Code)
+        api_key = os.getenv('ANTHROPIC_API_KEY') or os.getenv('ANTHROPIC_AUTH_TOKEN')
         if not api_key:
             raise ValueError(
                 "ANTHROPIC_API_KEY not found in environment variables.\n"
