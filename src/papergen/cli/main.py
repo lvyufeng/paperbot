@@ -204,6 +204,14 @@ def _get_project() -> PaperProject:
     return project
 
 
+@app.command()
+def chat():
+    """Start interactive chat mode for paper writing assistance."""
+    from ..interactive.repl import PaperGenREPL
+    repl = PaperGenREPL()
+    repl.run()
+
+
 # Subcommands
 from . import research as research_module
 from . import outline as outline_module
