@@ -2,6 +2,9 @@
 
 from typing import Dict, Any, Optional, Iterator
 import anthropic
+import httpx
+import requests
+import json
 
 from ..core.config import config
 from ..core.logging_config import get_logger, log_api_call, log_error
@@ -21,16 +24,23 @@ class ClaudeClient:
         """
         self.logger = get_logger()
         self.api_key = api_key or config.get_api_key()
-        self.model = model or config.get('api.model', 'claude-sonnet-4-20250514')
+        self.model = model or config.get('api.model', 'claude-sonnet-4-5-20250929')
         self.base_url = base_url if base_url is not None else config.get_api_base_url()
 
-        # Initialize Anthropic client with optional custom base URL
+        # For third-party APIs (like Claude Code proxies), use requests library
+        # to avoid httpx connection pooling issues
         if self.base_url:
-            self.client = anthropic.Anthropic(api_key=self.api_key, base_url=self.base_url)
-            self.logger.info(f"Claude client initialized: model={self.model}, base_url={self.base_url}")
+            self.use_direct_http = True
+            self.logger.info(f"Claude client initialized: model={self.model}, base_url={self.base_url}, using requests library")
         else:
-            self.client = anthropic.Anthropic(api_key=self.api_key)
-            self.logger.info(f"Claude client initialized: model={self.model}")
+            self.use_direct_http = False
+            # For official Anthropic API, use the SDK
+            timeout = httpx.Timeout(600.0, connect=30.0)
+            self.client = anthropic.Anthropic(
+                api_key=self.api_key,
+                timeout=timeout
+            )
+            self.logger.info(f"Claude client initialized: model={self.model}, using Anthropic SDK")
 
     def generate(
         self,
@@ -73,26 +83,97 @@ class ClaudeClient:
         try:
             self.logger.debug(f"API call: model={self.model}, max_tokens={max_tokens}, temp={temperature}, prompt_length={len(prompt)}")
 
-            # Build API call parameters (only include system if provided)
-            api_params = {
-                "model": self.model,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": messages
-            }
-            if system:
-                # Use array format for third-party provider compatibility
-                if self.base_url:
-                    api_params["system"] = [{"type": "text", "text": system}]
-                else:
-                    api_params["system"] = system
+            if self.use_direct_http:
+                # Use direct HTTP requests for third-party APIs
+                result = self._direct_http_generate(messages, max_tokens, temperature, system)
+            else:
+                # Use Anthropic SDK for official API
+                result = self._sdk_generate(messages, max_tokens, temperature, system)
 
-            response = self.client.messages.create(**api_params)
+            self.logger.info(f"API call successful: response_length={len(result)}")
+            return result
+
+        except Exception as e:
+            log_error(e, "Claude API generate", model=self.model, max_tokens=max_tokens)
+            raise RuntimeError(f"Claude API error: {str(e)}")
+
+    def _sdk_generate(
+        self,
+        messages: list,
+        max_tokens: int,
+        temperature: float,
+        system: Optional[str]
+    ) -> str:
+        """Generate using Anthropic SDK."""
+        # Build API call parameters
+        api_params = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "messages": messages
+        }
+        if system:
+            api_params["system"] = system
+
+        response = self.client.messages.create(**api_params)
+
+        # Extract text from response
+        result = response.content[0].text
+        input_tokens = response.usage.input_tokens
+        output_tokens = response.usage.output_tokens
+
+        log_api_call(
+            endpoint="messages.create",
+            model=self.model,
+            tokens=input_tokens + output_tokens,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            max_tokens=max_tokens
+        )
+
+        return result
+
+    def _direct_http_generate(
+        self,
+        messages: list,
+        max_tokens: int,
+        temperature: float,
+        system: Optional[str]
+    ) -> str:
+        """Generate using direct HTTP requests (for third-party APIs)."""
+        # Build request payload
+        payload = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "messages": messages
+        }
+        if system:
+            payload["system"] = system
+
+        # Make HTTP request using requests library with a fresh session
+        # to avoid connection pooling issues with some proxies
+        session = requests.Session()
+        try:
+            response = session.post(
+                f"{self.base_url}/v1/messages",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": self.api_key,
+                    "anthropic-version": "2023-06-01",
+                    "Connection": "close"  # Force connection close
+                },
+                json=payload,
+                timeout=120.0
+            )
+
+            response.raise_for_status()
+            data = response.json()
 
             # Extract text from response
-            result = response.content[0].text
-            input_tokens = response.usage.input_tokens
-            output_tokens = response.usage.output_tokens
+            result = data["content"][0]["text"]
+            input_tokens = data["usage"]["input_tokens"]
+            output_tokens = data["usage"]["output_tokens"]
 
             log_api_call(
                 endpoint="messages.create",
@@ -103,13 +184,9 @@ class ClaudeClient:
                 max_tokens=max_tokens
             )
 
-            self.logger.info(f"API call successful: input_tokens={input_tokens}, output_tokens={output_tokens}, response_length={len(result)}")
-
             return result
-
-        except Exception as e:
-            log_error(e, "Claude API generate", model=self.model, max_tokens=max_tokens)
-            raise RuntimeError(f"Claude API error: {str(e)}")
+        finally:
+            session.close()
 
     def stream_generate(
         self,
@@ -149,23 +226,25 @@ class ClaudeClient:
 
         # Call Claude API with streaming
         try:
-            # Build API call parameters (only include system if provided)
-            api_params = {
-                "model": self.model,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": messages
-            }
-            if system:
-                # Use array format for third-party provider compatibility
-                if self.base_url:
-                    api_params["system"] = [{"type": "text", "text": system}]
-                else:
+            if self.use_direct_http:
+                # For third-party APIs, fall back to non-streaming
+                # (streaming with direct HTTP is more complex)
+                result = self._direct_http_generate(messages, max_tokens, temperature, system)
+                yield result
+            else:
+                # Use SDK streaming for official API
+                api_params = {
+                    "model": self.model,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "messages": messages
+                }
+                if system:
                     api_params["system"] = system
 
-            with self.client.messages.stream(**api_params) as stream:
-                for text in stream.text_stream:
-                    yield text
+                with self.client.messages.stream(**api_params) as stream:
+                    for text in stream.text_stream:
+                        yield text
 
         except Exception as e:
             raise RuntimeError(f"Claude API error: {str(e)}")
@@ -212,11 +291,34 @@ class ClaudeClient:
         """
         try:
             # Make a minimal API call to test
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=10,
-                messages=[{"role": "user", "content": "Hi"}]
-            )
+            if self.use_direct_http:
+                session = requests.Session()
+                try:
+                    response = session.post(
+                        f"{self.base_url}/v1/messages",
+                        headers={
+                            "Content-Type": "application/json",
+                            "x-api-key": self.api_key,
+                            "anthropic-version": "2023-06-01",
+                            "Connection": "close"
+                        },
+                        json={
+                            "model": self.model,
+                            "max_tokens": 10,
+                            "messages": [{"role": "user", "content": "Hi"}]
+                        },
+                        timeout=30.0
+                    )
+                    response.raise_for_status()
+                finally:
+                    session.close()
+            else:
+                response = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=10,
+                    messages=[{"role": "user", "content": "Hi"}]
+                )
             return True
-        except Exception:
+        except Exception as e:
+            self.logger.error(f"API key validation failed: {type(e).__name__}: {str(e)}")
             return False
