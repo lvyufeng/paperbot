@@ -120,6 +120,8 @@ def draft_section(
 def draft_all(
     skip_existing: bool = typer.Option(True, help="Skip sections that are already drafted"),
     use_ai: bool = typer.Option(True, help="Use AI for drafting"),
+    parallel: bool = typer.Option(True, help="Use parallel drafting (faster)"),
+    max_workers: int = typer.Option(3, help="Number of parallel workers"),
 ):
     """Draft all sections in the outline."""
     project = _get_project()
@@ -172,35 +174,27 @@ def draft_all(
             console.print("[yellow]All sections already drafted.[/yellow]")
             return
 
-        console.print(f"\n[bold]Drafting {len(sections_to_draft)} sections...[/bold]\n")
+        console.print(f"\n[bold]Drafting {len(sections_to_draft)} sections...[/bold]")
 
-        # Draft each section
-        for i, sect in enumerate(sections_to_draft, 1):
-            console.print(f"[cyan]({i}/{len(sections_to_draft)})[/cyan] {sect.title}")
+        # Show speedup estimate if parallel
+        if parallel and len(sections_to_draft) > 1:
+            from ..document.parallel import estimate_speedup
+            speedup_info = estimate_speedup(len(sections_to_draft), max_workers)
+            console.print(f"[cyan]Parallel mode: {max_workers} workers[/cyan]")
+            console.print(f"[dim]Estimated speedup: {speedup_info['speedup']:.1f}x[/dim]")
+            console.print(f"[dim]Time saved: ~{speedup_info['time_saved_minutes']:.1f} minutes[/dim]\n")
 
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console
-            ) as progress:
-                task = progress.add_task(f"Drafting...", total=None)
-
-                draft = section_manager.draft_section(
-                    section=sect,
-                    research_text=research_text,
-                    guidance=""
-                )
-
-                section_manager.save_draft(draft)
-                progress.update(task, completed=True)
-
-            console.print(f"  [green]✓[/green] {draft.word_count} words, {len(draft.citation_keys)} citations\n")
+        # Choose drafting method
+        if parallel and len(sections_to_draft) > 1:
+            _draft_parallel(sections_to_draft, section_manager, research_text, max_workers)
+        else:
+            _draft_sequential(sections_to_draft, section_manager, research_text)
 
         # Save citations
         citations_file = project.get_research_dir() / "citations.json"
         citation_manager.save(citations_file)
 
-        console.print(f"[green]✓[/green] All sections drafted!")
+        console.print(f"\n[green]✓[/green] All sections drafted!")
 
         # Show statistics
         stats = section_manager.get_statistics()
@@ -216,6 +210,60 @@ def draft_all(
     except Exception as e:
         console.print(f"[red]Error: {str(e)}[/red]")
         raise typer.Exit(1)
+
+
+def _draft_parallel(sections, section_manager, research_text, max_workers):
+    """Draft sections in parallel."""
+    from ..document.parallel import ParallelSectionManager, DraftTask
+    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
+
+    tasks = [DraftTask(section=s, research_text=research_text) for s in sections]
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        console=console
+    ) as progress:
+        task_id = progress.add_task("Drafting...", total=len(tasks))
+
+        def callback(section_id, prog):
+            progress.update(task_id, completed=prog * len(tasks))
+
+        parallel_mgr = ParallelSectionManager(section_manager, max_workers, callback)
+        results = parallel_mgr.draft_sections_parallel(tasks, skip_existing=False)
+        stats = parallel_mgr.get_statistics()
+
+    console.print(f"\n[bold]Summary:[/bold]")
+    console.print(f"  Successful: [green]{stats['successful']}[/green]")
+    console.print(f"  Failed: [red]{stats['failed']}[/red]")
+    console.print(f"  Total time: {stats['total_duration']:.1f}s")
+
+
+def _draft_sequential(sections, section_manager, research_text):
+    """Draft sections sequentially."""
+    for i, sect in enumerate(sections, 1):
+        console.print(f"[cyan]({i}/{len(sections)})[/cyan] {sect.title}")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task(f"Drafting...", total=None)
+
+            draft = section_manager.draft_section(
+                section=sect,
+                research_text=research_text,
+                guidance=""
+            )
+
+            section_manager.save_draft(draft)
+            progress.update(task, completed=True)
+
+        console.print(f"  [green]✓[/green] {draft.word_count} words, {len(draft.citation_keys)} citations\n")
 
 
 @app.command("show")

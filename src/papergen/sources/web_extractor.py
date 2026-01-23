@@ -8,6 +8,8 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
+from ..core.exceptions import WebExtractionError, EmptyContentError
+
 
 class WebExtractor:
     """Extract content from web sources."""
@@ -26,38 +28,47 @@ class WebExtractor:
 
         Returns:
             Dictionary with extracted content
-        """
-        # Try to fetch content
-        html = self._fetch_url(url)
 
-        if not html:
+        Raises:
+            WebExtractionError: If URL extraction fails
+            EmptyContentError: If extracted content is empty
+        """
+        try:
+            # Try to fetch content
+            html = self._fetch_url(url)
+
+            if not html:
+                raise WebExtractionError(url, "Failed to fetch URL")
+
+            # Parse HTML
+            soup = BeautifulSoup(html, 'html.parser')
+
+            # Extract metadata
+            metadata = self._extract_metadata(soup, url)
+
+            # Extract main content
+            content = self._extract_content(soup)
+
+            # Validate extracted content
+            if not content["full_text"] or len(content["full_text"].strip()) < 100:
+                raise EmptyContentError(url, min_length=100)
+
+            # Extract citations (if it's an academic page)
+            citations = self._extract_citations(content["full_text"])
+
             return {
-                "metadata": {"url": url, "error": "Failed to fetch URL"},
-                "content": {"full_text": "", "sections": []},
-                "citations": [],
+                "metadata": metadata,
+                "content": content,
+                "citations": citations,
                 "figures": [],
                 "tables": [],
             }
 
-        # Parse HTML
-        soup = BeautifulSoup(html, 'html.parser')
-
-        # Extract metadata
-        metadata = self._extract_metadata(soup, url)
-
-        # Extract main content
-        content = self._extract_content(soup)
-
-        # Extract citations (if it's an academic page)
-        citations = self._extract_citations(content["full_text"])
-
-        return {
-            "metadata": metadata,
-            "content": content,
-            "citations": citations,
-            "figures": [],
-            "tables": [],
-        }
+        except (WebExtractionError, EmptyContentError):
+            # Re-raise our custom exceptions
+            raise
+        except Exception as e:
+            raise WebExtractionError(url, f"Unexpected error: {str(e)}")
 
     def _fetch_url(self, url: str) -> Optional[str]:
         """Fetch URL content with retries."""
